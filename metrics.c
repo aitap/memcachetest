@@ -166,19 +166,25 @@ static void print_details(enum TxnType tx_type, struct ResultMetrics *r) {
            hrtime2text(r->max99th_result, tmax99, sizeof(tmax99)));
 }
 
-void print_metrics(struct thread_context *ctx) {
+void print_metrics(struct thread_context *ctx, struct timespec * time) {
+    long total_count = 0;
     for (int ii = 0; ii < TX_CAS - TX_GET; ++ii) {
         if (ctx->tx[ii].current > 0) {
             struct ResultMetrics *r = calc_metrics(ii, ctx);
             if (r) {
                 print_details(ii, r);
+                total_count += r->success_count;
                 free(r);
             }
         }
     }
+    if (time->tv_sec && time->tv_nsec) {
+        double throughput = total_count/(time->tv_sec + 1e-9*time->tv_nsec);
+        fprintf(stdout, "Throughput: %g s^-1\n", throughput);
+    }
 }
 
-void print_aggregated_metrics(struct thread_context *ctx, int num)
+void print_aggregated_metrics(struct thread_context *ctx, int num, struct timespec * time)
 {
     int total = 0;
     for (int ii = 0; ii < num; ++ii) {
@@ -197,5 +203,5 @@ void print_aggregated_metrics(struct thread_context *ctx, int num)
         }
     }
 
-    print_metrics(&context);
+    print_metrics(&context, time);
 }

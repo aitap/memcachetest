@@ -623,7 +623,7 @@ static int populate_dataset(struct thread_context *ctx) {
     int sres = -1;
 
     if (end > ctx->offset)
-	    ctx->offset = 0;
+        ctx->offset = 0;
 
     if (verbose) {
         fprintf(stderr, "Populating from %d to %d\n", ctx->offset, end);
@@ -958,7 +958,7 @@ int main(int argc, char **argv) {
         case 'h': add_host(optarg);
             break;
         case 'T': runtime_limit = atol(optarg);
-	        break;
+            break;
         case 'i': no_items = atoi(optarg);
             break;
         case 's': srand(atoi(optarg));
@@ -1085,7 +1085,7 @@ int main(int argc, char **argv) {
         start_time = (int) time (NULL);
         if (runtime_limit > 0)
         {
-	        alarm(runtime_limit);
+            alarm(runtime_limit);
         }
     }
     size_t nget = 0;
@@ -1094,7 +1094,9 @@ int main(int argc, char **argv) {
         pthread_t *threads = calloc(sizeof(pthread_t), no_threads);
         struct thread_context *ctx = calloc(sizeof(struct thread_context), no_threads);
         int ii;
+        struct timespec local_start, local_end={0,0};
 
+        if (clock_gettime(CLOCK_MONOTONIC, &local_start)) abort();
         if (no_iterations > 0) {
             int perThread = no_iterations / no_threads;
             int rest = no_iterations % no_threads;
@@ -1118,13 +1120,17 @@ int main(int argc, char **argv) {
                 assert(ret == (void*)&ctx[ii]);
                 if (verbose) {
                     fprintf(stdout, "Details from thread %d\n", ii);
-                    print_metrics(&ctx[ii]);
+                    print_metrics(&ctx[ii], &local_end);
                 }
             }
         }
+        if (clock_gettime(CLOCK_MONOTONIC, &local_end)) abort();
+        local_end.tv_sec -= local_start.tv_sec;
+        local_end.tv_nsec -= local_start.tv_nsec;
 
         fprintf(stdout, "Average with %d threads\n", no_threads);
-        print_aggregated_metrics(ctx, no_threads);
+        print_aggregated_metrics(ctx, no_threads, &local_end);
+
         free(threads);
         free(ctx);
     } while (loop);
