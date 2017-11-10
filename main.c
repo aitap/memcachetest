@@ -807,6 +807,91 @@ static void add_host(const char *hostname) {
     }
 }
 
+static struct addrinfo *lookuphost(const char *hostname, in_port_t port) {
+    struct addrinfo *ai = 0;
+    struct addrinfo hints = {
+        .ai_flags = AI_PASSIVE|AI_ADDRCONFIG,
+        .ai_family = AF_UNSPEC,
+        .ai_protocol = IPPROTO_TCP,
+        .ai_socktype = SOCK_STREAM };
+    char service[NI_MAXSERV];
+    int error;
+
+    (void)snprintf(service, NI_MAXSERV, "%d", port);
+    if ((error = getaddrinfo(hostname, service, &hints, &ai)) != 0) {
+        if (error != EAI_SYSTEM) {
+            fprintf(stderr, "getaddrinfo(): %s\n", gai_strerror(error));
+        } else {
+            perror("getaddrinfo()");
+        }
+    }
+
+    return ai;
+}
+
+static int get_server_rusage(const struct host *entry, struct rusage *rusage) {
+    int ret = -1;
+    switch (current_memcached_library) {
+    case LIBMEMC_TEXTUAL:
+        {
+            int sock;
+            char buffer[8192];
+            struct addrinfo* addrinfo = lookuphost(entry->hostname, entry->port);
+            if (addrinfo == NULL) {
+                return -1;
+            }
+
+            memset(rusage, 0, sizeof(*rusage));
+
+            if ((sock = socket(addrinfo->ai_family,
+                               addrinfo->ai_socktype,
+                               addrinfo->ai_protocol)) != -1) {
+                if (connect(sock, addrinfo->ai_addr, addrinfo->ai_addrlen) != -1) {
+                    if (send(sock, "stats\r\n", 7, 0) > 0) {
+                        if (recv(sock, buffer, sizeof(buffer), 0) > 0) {
+                            char *ptr = strstr(buffer, "rusage_user");
+                            if (ptr != NULL) {
+                                rusage->ru_utime.tv_sec = atoi(ptr + 12);
+                                ptr = strchr(ptr, '.');
+                                if (ptr != NULL) {
+                                    rusage->ru_utime.tv_usec = atoi(ptr + 1);
+                                }
+                            }
+
+                            ptr = strstr(buffer, "rusage_system");
+                            if (ptr != NULL) {
+                                rusage->ru_stime.tv_sec = atoi(ptr + 14);
+
+                                ptr = strchr(ptr, '.');
+                                if (ptr != NULL) {
+                                    rusage->ru_stime.tv_usec = atoi(ptr + 1);
+                                }
+                            }
+                            ret = 0;
+                        } else {
+                            fprintf(stderr, "Failed to read data: %s\n", strerror(errno));
+                        }
+                    } else {
+                        fprintf(stderr, "Failed to send data: %s\n", strerror(errno));
+                    }
+                } else {
+                    fprintf(stderr, "Failed to connect socket: %s\n", strerror(errno));
+                }
+
+                close(sock);
+            } else {
+                fprintf(stderr, "Failed to create socket: %s\n", strerror(errno));
+            }
+
+            freeaddrinfo(addrinfo);
+        }
+        break;
+    default:
+        break;
+    }
+    return ret;
+}
+
 static void exit_handler(int signum)
 {
     long end_time = (int) time(NULL);
@@ -828,6 +913,7 @@ int main(int argc, char **argv) {
     int populate = 1;
     int loop = 0;
     struct rusage rusage;
+    struct rusage server_start;
     struct timeval starttime = {.tv_sec = 0};
     int size;
     gettimeofday(&starttime, NULL);
@@ -988,6 +1074,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (get_server_rusage(hosts, &server_start) == -1) {
+        fprintf(stderr, "Failed to get server stats\n");
+    }
+
     if (loop)
     {
         signal(SIGALRM, exit_handler);
@@ -1062,6 +1152,19 @@ int main(int argc, char **argv) {
             fprintf(stdout, "Tot: %s\n", timeval2text(&endtime,
                                                       buffer,
                                                       sizeof(buffer)));
+        }
+
+        if (get_server_rusage(hosts, &rusage) != -1) {
+            rusage.ru_utime.tv_sec -= server_start.ru_utime.tv_sec;
+            rusage.ru_utime.tv_usec = 0;
+            rusage.ru_stime.tv_sec -= server_start.ru_stime.tv_sec;
+            rusage.ru_stime.tv_usec = 0;
+
+            fprintf(stdout, "Server time:\n");
+            fprintf(stdout, "Usr: %s\n", timeval2text(&rusage.ru_utime,
+                                                      buffer, sizeof(buffer)));
+            fprintf(stdout, "Sys: %s\n", timeval2text(&rusage.ru_stime,
+                                                      buffer, sizeof(buffer)));
         }
     }
 
