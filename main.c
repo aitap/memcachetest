@@ -998,8 +998,6 @@ int main(int argc, char **argv) {
 	        alarm(runtime_limit);
         }
     }
-    size_t nget = 0;
-    size_t nset = populate ? no_items : 0;
     do {
         pthread_t *threads = calloc(sizeof(pthread_t), no_threads);
         struct thread_context *ctx = calloc(sizeof(struct thread_context), no_threads);
@@ -1061,8 +1059,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    fprintf(stdout,"Total gets: %zu\n", nget);
-    fprintf(stdout,"Total sets: %zu\n", nset);
     destroy_connection_pool();
 
     return 0;
