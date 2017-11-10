@@ -166,7 +166,7 @@ static void print_details(enum TxnType tx_type, struct ResultMetrics *r) {
            hrtime2text(r->max99th_result, tmax99, sizeof(tmax99)));
 }
 
-void print_metrics(struct thread_context *ctx, struct timespec * time) {
+void print_metrics(struct thread_context *ctx, double timediff) {
     long total_count = 0;
     for (int ii = 0; ii < TX_CAS - TX_GET; ++ii) {
         if (ctx->tx[ii].current > 0) {
@@ -178,13 +178,13 @@ void print_metrics(struct thread_context *ctx, struct timespec * time) {
             }
         }
     }
-    if (time->tv_sec && time->tv_nsec) {
-        double throughput = total_count/(time->tv_sec + 1e-9*time->tv_nsec);
+    if (timediff) {
+        double throughput = total_count/timediff;
         fprintf(stdout, "Throughput: %g s^-1\n", throughput);
     }
 }
 
-void print_aggregated_metrics(struct thread_context *ctx, int num, struct timespec * time)
+void print_aggregated_metrics(struct thread_context *ctx, int num, double timediff)
 {
     int total = 0;
     for (int ii = 0; ii < num; ++ii) {
@@ -203,5 +203,5 @@ void print_aggregated_metrics(struct thread_context *ctx, int num, struct timesp
         }
     }
 
-    print_metrics(&context, time);
+    print_metrics(&context, timediff);
 }

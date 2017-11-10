@@ -1094,7 +1094,7 @@ int main(int argc, char **argv) {
         pthread_t *threads = calloc(sizeof(pthread_t), no_threads);
         struct thread_context *ctx = calloc(sizeof(struct thread_context), no_threads);
         int ii;
-        struct timespec local_start, local_end={0,0};
+        struct timespec local_start, local_end;
 
         if (clock_gettime(CLOCK_MONOTONIC, &local_start)) abort();
         if (no_iterations > 0) {
@@ -1120,16 +1120,15 @@ int main(int argc, char **argv) {
                 assert(ret == (void*)&ctx[ii]);
                 if (verbose) {
                     fprintf(stdout, "Details from thread %d\n", ii);
-                    print_metrics(&ctx[ii], &local_end);
+                    print_metrics(&ctx[ii], 0);
                 }
             }
         }
         if (clock_gettime(CLOCK_MONOTONIC, &local_end)) abort();
-        local_end.tv_sec -= local_start.tv_sec;
-        local_end.tv_nsec -= local_start.tv_nsec;
+		double time_diff = 1e-9*(local_end.tv_nsec - local_start.tv_nsec) + local_end.tv_sec - local_start.tv_sec;
 
         fprintf(stdout, "Average with %d threads\n", no_threads);
-        print_aggregated_metrics(ctx, no_threads, &local_end);
+        print_aggregated_metrics(ctx, no_threads, time_diff);
 
         free(threads);
         free(ctx);
