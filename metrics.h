@@ -39,8 +39,8 @@ struct thread_context;
 void record_tx(enum TxnType, hrtime_t, struct thread_context *);
 struct ResultMetrics *calc_metrics(enum TxnType tx_type,
                                    struct thread_context *);
-void print_metrics(struct thread_context *);
-void print_aggregated_metrics(struct thread_context *, int);
+void print_metrics(struct thread_context *, struct timespec *);
+void print_aggregated_metrics(struct thread_context *, int, struct timespec *);
 
 struct ResultMetrics {
     hrtime_t max_result;
