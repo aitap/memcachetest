@@ -53,7 +53,7 @@ struct ResultMetrics {
     long error_count;
 };
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 }
 #endif
 
