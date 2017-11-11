@@ -763,7 +763,7 @@ static int test(struct thread_context *ctx) {
                 record_tx(TX_GET, delta, ctx);
                 free(data);
             } else {
-                fprintf(stderr, "<%s> isn't there anymore\n", key);
+                if (verbose) fprintf(stderr, "<%s> isn't there anymore\n", key);
             }
         }
         release_connection(connection);
