@@ -139,7 +139,7 @@ static const char* hrtime2text(hrtime_t t, char *buffer, size_t size) {
     return buffer;
 }
 
-static void print_details(enum TxnType tx_type, struct ResultMetrics *r) {
+static void print_details(enum TxnType tx_type, struct ResultMetrics *r, double timediff) {
     static const char * txt[] = { [TX_GET] = "Get",
                                    [TX_SET] = "Set",
                                    [TX_ADD] = "Add",
@@ -164,23 +164,20 @@ static void print_details(enum TxnType tx_type, struct ResultMetrics *r) {
            hrtime2text(r->max90th_result, tmax90, sizeof(tmax90)),
            hrtime2text(r->max95th_result, tmax95, sizeof(tmax95)),
            hrtime2text(r->max99th_result, tmax99, sizeof(tmax99)));
+    if (timediff) {
+        printf("%s throughput: %g s^-1\n", txt[tx_type], r->success_count/timediff);
+    }
 }
 
 void print_metrics(struct thread_context *ctx, double timediff) {
-    long total_count = 0;
     for (int ii = 0; ii < TX_CAS - TX_GET; ++ii) {
         if (ctx->tx[ii].current > 0) {
             struct ResultMetrics *r = calc_metrics(ii, ctx);
             if (r) {
-                print_details(ii, r);
-                total_count += r->success_count;
+                print_details(ii, r, timediff);
                 free(r);
             }
         }
-    }
-    if (timediff) {
-        double throughput = total_count/timediff;
-        fprintf(stdout, "Throughput: %g s^-1\n", throughput);
     }
 }
 
