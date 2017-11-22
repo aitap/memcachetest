@@ -36,6 +36,7 @@
 #include <string.h>
 #include "metrics.h"
 #include "memcachetest.h"
+#include <inttypes.h>
 
 bool initialize_thread_ctx(struct thread_context *ctx, int offset, size_t total)
 {
@@ -156,14 +157,15 @@ static void print_details(enum TxnType tx_type, struct ResultMetrics *r, double 
     char tmax90[80];
     char tmax95[80];
     char tmax99[80];
-    printf("     #of ops.       min       max       avg   max90th   max95th   max99th\n");
-    printf("%13ld%10.10s%10.10s%10.10s%10.10s%10.10s%10.10s\n\n", r->success_count,
+    printf("     #of ops.       min       max       avg   max90th   max95th   max99th\t95th_ns\n");
+    printf("%13ld%10.10s%10.10s%10.10s%10.10s%10.10s%10.10s\t%" PRIu64 "\n\n", r->success_count,
            hrtime2text(r->min_result, tmin, sizeof (tmin)),
            hrtime2text(r->max_result, tmax, sizeof (tmax)),
            hrtime2text(r->average, tavg, sizeof(tavg)),
            hrtime2text(r->max90th_result, tmax90, sizeof(tmax90)),
            hrtime2text(r->max95th_result, tmax95, sizeof(tmax95)),
-           hrtime2text(r->max99th_result, tmax99, sizeof(tmax99)));
+           hrtime2text(r->max99th_result, tmax99, sizeof(tmax99)),
+		   (uint64_t)r->max95th_result);
     if (timediff) {
         printf("%s throughput: %g s^-1\n", txt[tx_type], r->success_count/timediff);
     }
